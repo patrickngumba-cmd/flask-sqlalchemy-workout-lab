@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
-from sqlalchemy.ext.associationproxy import association_proxy
 
 db = SQLAlchemy()
 
@@ -37,17 +36,17 @@ class Exercise(db.Model):
     @validates('category')
     def validate_category(self, key, value):
         if not value or value not in VALID_CATEGORIES:
-            raise ValueError(f"Category must be one of: {', '.join(VALID_CATEGORIES)}")
+            raise ValueError("Invalid exercise category.")
         return value
 
     def __repr__(self):
-        return f"<Exercise {self.id}: {self.name} ({self.category})>"
+        return f"<Exercise {self.id}: {self.name}>"
 
 
 class Workout(db.Model):
     __tablename__ = 'workouts'
     __table_args__ = (
-        db.CheckConstraint('duration_minutes > 0', name='check_positive_workout_duration'),
+        db.CheckConstraint('duration_minutes > 0', name='check_positive_duration'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -71,24 +70,24 @@ class Workout(db.Model):
     @validates('duration_minutes')
     def validate_duration(self, key, value):
         if value is None or int(value) <= 0:
-            raise ValueError("Workout duration_minutes must be greater than 0.")
+            raise ValueError("Duration must be greater than 0 minutes.")
         return int(value)
 
     def __repr__(self):
-        return f"<Workout {self.id} on {self.date} ({self.duration_minutes} mins)>"
+        return f"<Workout {self.id} on {self.date}>"
 
 
 class WorkoutExercise(db.Model):
     __tablename__ = 'workout_exercises'
     __table_args__ = (
-        db.CheckConstraint('sets IS NULL OR sets > 0', name='check_positive_sets'),
-        db.CheckConstraint('reps IS NULL OR reps > 0', name='check_positive_reps'),
-        db.CheckConstraint('duration_seconds IS NULL OR duration_seconds > 0', name='check_positive_duration_seconds'),
+        db.CheckConstraint('sets IS NULL OR sets > 0', name='check_sets_positive'),
+        db.CheckConstraint('reps IS NULL OR reps > 0', name='check_reps_positive'),
+        db.CheckConstraint('duration_seconds IS NULL OR duration_seconds > 0', name='check_seconds_positive'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    workout_id = db.Column(db.Integer, db.ForeignKey('workouts.id', ondelete='CASCADE'), nullable=False)
-    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id', ondelete='CASCADE'), nullable=False)
+    workout_id = db.Column(db.Integer, db.ForeignKey('workouts.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
     reps = db.Column(db.Integer)
     sets = db.Column(db.Integer)
     duration_seconds = db.Column(db.Integer)
@@ -98,10 +97,12 @@ class WorkoutExercise(db.Model):
     exercise = db.relationship('Exercise', back_populates='workout_exercises')
 
     @validates('reps', 'sets', 'duration_seconds')
-    def validate_positive_metrics(self, key, value):
-        if value is not None and int(value) <= 0:
-            raise ValueError(f"{key} must be a positive integer greater than 0.")
-        return int(value) if value is not None else None
+    def validate_metrics(self, key, value):
+        if value is not None:
+            if int(value) <= 0:
+                raise ValueError(f"{key} must be greater than 0.")
+            return int(value)
+        return None
 
     def __repr__(self):
-        return f"<WorkoutExercise workout={self.workout_id} exercise={self.exercise_id}>"
+        return f"<WorkoutExercise {self.id}>"
