@@ -12,10 +12,13 @@ from models import db, Exercise, Workout, WorkoutExercise
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 
     with app.app_context():
         db.create_all()
+        WorkoutExercise.query.delete()
+        Workout.query.delete()
+        Exercise.query.delete()
+        db.session.commit()
 
         ex1 = Exercise(name="Barbell Squat", category="Strength", equipment_needed=True)
         ex2 = Exercise(name="Burpees", category="HIIT", equipment_needed=False)
@@ -29,9 +32,6 @@ def client():
 
         with app.test_client() as client:
             yield client
-
-        db.session.remove()
-        db.drop_all()
 
 
 def test_get_workouts(client):
